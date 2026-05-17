@@ -28,7 +28,7 @@ public class DataSeeder implements CommandLineRunner {
     @Override
     public void run(String... args) throws Exception {
         if (championRepository.count() == 0) {
-            System.out.println("Iniciando carga de campeones...");
+            System.out.println("Iniciando carga matemática de campeones...");
 
             InputStream is = new ClassPathResource("champion.json").getInputStream();
             RiotChampionResponse response = objectMapper.readValue(is, RiotChampionResponse.class);
@@ -40,14 +40,53 @@ public class DataSeeder implements CommandLineRunner {
                 champ.setId(riotChamp.id());
                 champ.setName(riotChamp.name());
                 champ.setRole(riotChamp.tags().isEmpty() ? "Desconocido" : riotChamp.tags().get(0));
-                champ.setBaseAttackScore(riotChamp.info().attack());
-                champ.setBaseMagicScore(riotChamp.info().magic());
+
+                int attack = riotChamp.info().attack();
+                int magic = riotChamp.info().magic();
+                champ.setBaseAttackScore(attack);
+                champ.setBaseMagicScore(magic);
+                champ.setBaseDefenseScore(riotChamp.info().defense());
+                champ.setDifficultyScore(riotChamp.info().difficulty());
+
+                // Perfil de Daño
+                if (attack >= magic + 4) {
+                    champ.setDamageProfile("AD");
+                } else if (magic >= attack + 4) {
+                    champ.setDamageProfile("AP");
+                } else {
+                    champ.setDamageProfile("Híbrido");
+                }
+
+                // Rango y tipo de ataque
+                double range = riotChamp.stats().getOrDefault("attackrange", 500.0);
+                champ.setAttackRange((int) range);
+                champ.setMelee(range < 300);
+
+                // Perfil de aguante
+                int defense = riotChamp.info().defense();
+                if (defense >= 7) {
+                    champ.setDurabilityProfile("Tanque");
+                } else if (defense >= 4) {
+                    champ.setDurabilityProfile("Luchador/Bruiser");
+                } else {
+                    champ.setDurabilityProfile("Papel/Squishy");
+                }
+
+                // Dificultad de ejecución
+                int difficulty = riotChamp.info().difficulty();
+                if (difficulty >= 7) {
+                    champ.setExecutionDifficulty("Alta");
+                } else if (difficulty >= 4) {
+                    champ.setExecutionDifficulty("Media");
+                } else {
+                    champ.setExecutionDifficulty("Baja");
+                }
 
                 championsToSave.add(champ);
             });
 
             championRepository.saveAll(championsToSave);
-            System.out.println("¡Carga completada! Campeones guardados: " + championsToSave.size());
+            System.out.println("¡Carga completada! Campeones procesados: " + championsToSave.size());
         } else {
             System.out.println("Los campeones ya estaban en la base de datos.");
         }
